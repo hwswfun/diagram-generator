@@ -104,7 +104,7 @@ class AWSArchitectureDiagram {
 
       const lambda: AWSComponent = {
         id: "lambda",
-        label: "fun AWS Lambda\\nFunction",
+        label: "more fun AWS Lambda\\nFunction",
         x: 250,
         y: 100,
         width: 120,
@@ -154,91 +154,40 @@ class AWSArchitectureDiagram {
   }
 
   private convertMaxGraphToDrawIO(maxGraphXml: string): string {
-    // Parse the maxGraph XML
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(maxGraphXml, "text/xml");
+    let converted = maxGraphXml;
 
-    // Create new draw.io compatible document
-    const newDoc = document.implementation.createDocument("", "", null);
-    const root = newDoc.createElement("root");
+    // Convert element names
+    converted = converted.replace(/<Cell/g, "<mxCell");
+    converted = converted.replace(/<\/Cell>/g, "</mxCell>");
+    converted = converted.replace(/<Geometry/g, "<mxGeometry");
+    converted = converted.replace(/<\/Geometry>/g, "</mxGeometry>");
 
-    // Process each Cell element
-    const cells = xmlDoc.getElementsByTagName("Cell");
+    // Convert geometry attributes (remove underscores)
+    converted = converted.replace(/_x="/g, 'x="');
+    converted = converted.replace(/_y="/g, 'y="');
+    converted = converted.replace(/_width="/g, 'width="');
+    converted = converted.replace(/_height="/g, 'height="');
 
-    for (let i = 0; i < cells.length; i++) {
-      const cell = cells[i];
-      const mxCell = newDoc.createElement("mxCell");
+    // Convert style Object elements to style attributes and properly position them
+    converted = converted.replace(
+      /<mxCell([^>]*?)><mxGeometry([^>]*?)\/><Object ([^>]*?)as="style"[^>]*?\/><\/mxCell>/g,
+      (match, cellAttrs, geomAttrs, styleAttrs) => {
+        const attrs = styleAttrs.match(/(\w+)="([^"]*?)"/g) || [];
+        const styles = attrs
+          .filter((attr: string) => !attr.startsWith("as="))
+          .map((attr: string) => attr.replace(/="([^"]*)"/, "=$1"))
+          .join(";");
 
-      // Copy basic attributes
-      const id = cell.getAttribute("id");
-      if (id) mxCell.setAttribute("id", id);
+        const styleAttr = styles ? ` style="${styles};"` : "";
 
-      const parent = cell.getAttribute("parent");
-      if (parent) mxCell.setAttribute("parent", parent);
-
-      const value = cell.getAttribute("value");
-      if (value) mxCell.setAttribute("value", value);
-
-      const vertex = cell.getAttribute("vertex");
-      if (vertex) mxCell.setAttribute("vertex", vertex);
-
-      const edge = cell.getAttribute("edge");
-      if (edge) mxCell.setAttribute("edge", edge);
-
-      const source = cell.getAttribute("source");
-      if (source) mxCell.setAttribute("source", source);
-
-      const target = cell.getAttribute("target");
-      if (target) mxCell.setAttribute("target", target);
-
-      // Convert geometry
-      const geometryElement = cell.getElementsByTagName("Geometry")[0];
-      if (geometryElement) {
-        const mxGeometry = newDoc.createElement("mxGeometry");
-
-        const x = geometryElement.getAttribute("_x");
-        const y = geometryElement.getAttribute("_y");
-        const width = geometryElement.getAttribute("_width");
-        const height = geometryElement.getAttribute("_height");
-        const relative = geometryElement.getAttribute("relative");
-
-        if (x) mxGeometry.setAttribute("x", x);
-        if (y) mxGeometry.setAttribute("y", y);
-        if (width) mxGeometry.setAttribute("width", width);
-        if (height) mxGeometry.setAttribute("height", height);
-        if (relative) mxGeometry.setAttribute("relative", relative);
-
-        mxGeometry.setAttribute("as", "geometry");
-        mxCell.appendChild(mxGeometry);
+        return `<mxCell${cellAttrs}${styleAttr}><mxGeometry${geomAttrs}/></mxCell>`;
       }
+    );
 
-      // Convert style from Object element to style attribute
-      const styleObjects = cell.getElementsByTagName("Object");
-      for (let j = 0; j < styleObjects.length; j++) {
-        const styleObj = styleObjects[j];
-        if (styleObj.getAttribute("as") === "style") {
-          const styleAttributes: string[] = [];
-
-          // Get all attributes except 'as'
-          const attributes = styleObj.attributes;
-          for (let k = 0; k < attributes.length; k++) {
-            const attr = attributes[k];
-            if (attr.name !== "as") {
-              styleAttributes.push(`${attr.name}=${attr.value}`);
-            }
-          }
-
-          if (styleAttributes.length > 0) {
-            mxCell.setAttribute("style", styleAttributes.join(";") + ";");
-          }
-          break;
-        }
-      }
-
-      root.appendChild(mxCell);
-    }
-
-    return new XMLSerializer().serializeToString(root);
+    // Remove wrapper
+    return converted
+      .replace("<GraphDataModel>", "")
+      .replace("</GraphDataModel>", "");
   }
 
   public exportToDrawIO(filename: string = "aws-architecture.drawio"): void {
@@ -249,11 +198,10 @@ class AWSArchitectureDiagram {
       // Convert maxGraph format to draw.io format
       const convertedXml = this.convertMaxGraphToDrawIO(graphModelXml);
 
-      // Create draw.io compatible XML structure with the converted graph data
-      const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
-<mxfile host="maxgraph-aws-diagram" modified="${new Date().toISOString()}" agent="maxGraph AWS Diagram Generator" version="1.0.0" etag="${Math.random()
+      // Create draw.io compatible XML structure - format like the working sample
+      const xmlContent = `<mxfile host="maxgraph-aws-diagram" modified="${new Date().toISOString()}" agent="maxGraph AWS Diagram Generator" version="1.0.0" etag="${Math.random()
         .toString(36)
-        .substring(7)}">
+        .substring(7)}" type="device">
   <diagram id="aws-architecture" name="AWS Architecture">
     <mxGraphModel dx="800" dy="600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
       ${convertedXml}
