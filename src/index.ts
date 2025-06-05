@@ -47,22 +47,22 @@ class AWSArchitectureDiagram {
   }
 
   private createAWSComponent(component: AWSComponent): Cell {
+    // Convert \n to HTML line breaks for draw.io compatibility
+    const drawioLabel = component.label.replace(/\\n/g, "<br>");
+
     return this.editor.graph.insertVertex({
       parent: this.parent,
       position: [component.x, component.y],
       size: [component.width, component.height],
-      value: component.label,
+      value: drawioLabel,
       style: {
+        rounded: true,
+        whiteSpace: "wrap",
         fillColor: component.fillColor,
         strokeColor: component.strokeColor,
-        shape: component.shape,
         fontSize: 12,
-        fontColor: "#000000",
-        verticalAlign: "middle",
-        align: "center",
-        rounded: true,
-        strokeWidth: 2,
-      },
+        html: 1, // Required for HTML rendering in draw.io
+      } as any,
     });
   }
 
