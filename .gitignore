@@ -12,6 +12,7 @@ build/
 # Generated diagram files
 *.drawio
 *.xml
+*.bkp
 
 # IDE
 .vscode/
